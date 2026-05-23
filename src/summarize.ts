@@ -11,6 +11,13 @@ const CATEGORY_GUIDE = CATEGORIES.map(
   (c) => `- ${c.id}: ${c.name}（${c.purpose}）。例: ${c.topics}`,
 ).join("\n");
 
+// 1記事分の要約結果（内部用）
+interface SummaryResult {
+  titleJa: string;
+  summaryJa: string;
+  categories: string[];
+}
+
 // ----- 記事の要約とカテゴリ分類 -----
 
 // 要約バッチの応答スキーマ
@@ -50,67 +57,117 @@ function buildSummaryPrompt(batch: ArticleCluster[]): string {
 
   return [
     "あなたはAI業界ニュースの編集者です。以下の各記事について、日本語で次の項目を作成してください。",
-    "- titleJa: 日本語のタイトル（英語記事は自然な日本語に翻訳。簡潔に）",
+    "- titleJa: 日本語のタイトル（英語記事は必ず自然な日本語に翻訳する。英語のままにしない。簡潔に）",
     "- summaryJa: 2〜3文の日本語要約（事実ベースで、誇張や憶測は避ける）",
     "- categories: 下のカテゴリ一覧から、この記事が当てはまるものの id を配列で挙げる（複数可）。当てはまるものが1つも無ければ空配列にする。",
     "",
     "カテゴリ一覧:",
     CATEGORY_GUIDE,
     "",
-    "記事の順番どおりに articles 配列で返してください。",
+    `記事は全部で${batch.length}件あります。記事の順番どおりに、必ず${batch.length}件すべてを articles 配列に含めて返してください（1件も省略しないこと）。`,
     "",
     items,
   ].join("\n");
 }
 
-// 記事グループの配列をバッチ単位で要約・分類する
+// 1バッチを要約する。バッチと同じ長さの配列を返す（失敗・取りこぼしは null）。
+async function summarizeBatch(
+  batch: ArticleCluster[],
+): Promise<(SummaryResult | null)[]> {
+  let parsed:
+    | { articles?: { titleJa?: string; summaryJa?: string; categories?: string[] }[] }
+    | null;
+  try {
+    const raw = await callGemini(buildSummaryPrompt(batch), {
+      responseSchema: summarySchema,
+    });
+    parsed = parseJsonLoose(raw) as typeof parsed;
+  } catch (err) {
+    console.warn(`  ✗ 要約バッチに失敗（${(err as Error).message}）`);
+    parsed = null;
+  }
+
+  return batch.map((_, idx) => {
+    const r = parsed?.articles?.[idx];
+    // titleJa か summaryJa が欠けていたら「取りこぼし」とみなして null を返す
+    if (!r || !r.titleJa || !r.summaryJa) return null;
+    return {
+      titleJa: r.titleJa,
+      summaryJa: r.summaryJa,
+      categories:
+        Array.isArray(r.categories) && r.categories.length > 0
+          ? r.categories
+          : ["other"],
+    };
+  });
+}
+
+// 記事グループの配列を要約・分類する。
+// AIの応答が記事数より少ないこと（取りこぼし）があるため、
+// 要約できなかった記事を集めて、もう一度だけ要約をかけ直す（2巡方式）。
 export async function summarizeClusters(
   clusters: ArticleCluster[],
 ): Promise<SummarizedArticle[]> {
-  const results: SummarizedArticle[] = [];
-  const totalBatches = Math.ceil(clusters.length / SUMMARY_BATCH_SIZE);
+  const results: (SummaryResult | null)[] = new Array(clusters.length).fill(null);
 
-  for (let i = 0; i < clusters.length; i += SUMMARY_BATCH_SIZE) {
-    const batch = clusters.slice(i, i + SUMMARY_BATCH_SIZE);
-    const batchNo = Math.floor(i / SUMMARY_BATCH_SIZE) + 1;
-    console.log(`  要約バッチ ${batchNo}/${totalBatches}（${batch.length}件）...`);
+  // 未処理の記事インデックスのリスト（最初は全件）
+  let pending: number[] = clusters.map((_, i) => i);
 
-    // AIに要約・分類させる。失敗しても元タイトルで代用してアプリは止めない。
-    let parsed: {
-      articles?: { titleJa?: string; summaryJa?: string; categories?: string[] }[];
-    } | null;
-    try {
-      const raw = await callGemini(buildSummaryPrompt(batch), {
-        responseSchema: summarySchema,
-      });
-      parsed = parseJsonLoose(raw) as typeof parsed;
-    } catch (err) {
-      console.warn(`  ✗ バッチ${batchNo}の要約に失敗（${(err as Error).message}）— 元タイトルで代用`);
-      parsed = null;
+  const MAX_ROUNDS = 2; // 1巡目 ＋ 取りこぼしの再要約1巡
+  for (let round = 1; round <= MAX_ROUNDS && pending.length > 0; round++) {
+    if (round === 1) {
+      console.log(`  ${pending.length} 件を要約中...`);
+    } else {
+      console.log(`  取りこぼし ${pending.length} 件を再要約中...`);
     }
 
-    batch.forEach((cluster, idx) => {
-      const r = parsed?.articles?.[idx];
-      // カテゴリが空、または取得できなければ「その他」扱いにする
-      const cats =
-        Array.isArray(r?.categories) && r.categories.length > 0
-          ? r.categories
-          : ["other"];
-      results.push({
-        cluster,
-        titleJa: r?.titleJa ?? cluster.representative.title,
-        summaryJa: r?.summaryJa ?? cluster.representative.contentSnippet.slice(0, 120),
-        categories: cats,
-      });
-    });
+    const stillPending: number[] = [];
+    for (let i = 0; i < pending.length; i += SUMMARY_BATCH_SIZE) {
+      const idxBatch = pending.slice(i, i + SUMMARY_BATCH_SIZE);
+      const batch = idxBatch.map((idx) => clusters[idx]);
+      const batchResults = await summarizeBatch(batch);
 
-    // 最後のバッチ以外は、レート制限対策で少し待つ
-    if (i + SUMMARY_BATCH_SIZE < clusters.length) {
-      await sleep(BATCH_DELAY_MS);
+      idxBatch.forEach((idx, j) => {
+        const r = batchResults[j];
+        if (r) {
+          results[idx] = r;
+        } else {
+          stillPending.push(idx);
+        }
+      });
+
+      // 次のバッチがあるなら、レート制限対策で少し待つ
+      if (i + SUMMARY_BATCH_SIZE < pending.length) {
+        await sleep(BATCH_DELAY_MS);
+      }
     }
+    pending = stillPending;
   }
 
-  return results;
+  if (pending.length > 0) {
+    console.warn(
+      `  ✗ ${pending.length} 件は要約できませんでした（元タイトルのまま掲載します）`,
+    );
+  }
+
+  // 結果を組み立てる。最終的に埋まらなかったものだけ元タイトルで代用。
+  return clusters.map((cluster, idx) => {
+    const r = results[idx];
+    if (r) {
+      return {
+        cluster,
+        titleJa: r.titleJa,
+        summaryJa: r.summaryJa,
+        categories: r.categories,
+      };
+    }
+    return {
+      cluster,
+      titleJa: cluster.representative.title,
+      summaryJa: cluster.representative.contentSnippet.slice(0, 120),
+      categories: ["other"],
+    };
+  });
 }
 
 // ----- 今日の1本の選定 -----
