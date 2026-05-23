@@ -16,12 +16,21 @@ export interface ArticleCluster {
   sources: string[]; // この話題を報じた取得元の一覧
 }
 
+// 記事を仕分けるカテゴリの定義（profile.ts で実際の中身を設定する）
+export interface Category {
+  id: string; // 内部の識別子（半角英字）
+  tabLabel: string; // タブに出る短い名前
+  name: string; // セクション見出しに出る正式名称
+  purpose: string; // このカテゴリの目的
+  topics: string; // ここに入る記事の例（AI分類の手がかり）
+}
+
 // AIが要約した結果
 export interface SummarizedArticle {
   cluster: ArticleCluster; // 元になった記事グループ
   titleJa: string; // 日本語タイトル
   summaryJa: string; // 日本語要約（2〜3文）
-  genre: string; // ジャンル（モデル / 論文 / 規制 など）
+  categories: string[]; // 当てはまるカテゴリのid（profile.ts の CATEGORIES）。無ければ ["other"]
 }
 
 // 「今日の1本」

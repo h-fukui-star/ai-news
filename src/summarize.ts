@@ -1,8 +1,17 @@
 import { callGemini, sleep, parseJsonLoose } from "./gemini";
-import { SUMMARY_BATCH_SIZE, BATCH_DELAY_MS, GENRES } from "./config";
+import { SUMMARY_BATCH_SIZE, BATCH_DELAY_MS } from "./config";
+import { CATEGORIES } from "./profile";
 import type { ArticleCluster, SummarizedArticle, TopStory } from "./types";
 
-// ----- 記事の要約 -----
+// カテゴリのid一覧（AIに選ばせる候補）
+const CATEGORY_IDS = CATEGORIES.map((c) => c.id);
+
+// カテゴリの説明文（要約プロンプトに埋め込み、AIの分類の手がかりにする）
+const CATEGORY_GUIDE = CATEGORIES.map(
+  (c) => `- ${c.id}: ${c.name}（${c.purpose}）。例: ${c.topics}`,
+).join("\n");
+
+// ----- 記事の要約とカテゴリ分類 -----
 
 // 要約バッチの応答スキーマ
 const summarySchema = {
@@ -15,9 +24,12 @@ const summarySchema = {
         properties: {
           titleJa: { type: "string" },
           summaryJa: { type: "string" },
-          genre: { type: "string", enum: GENRES },
+          categories: {
+            type: "array",
+            items: { type: "string", enum: CATEGORY_IDS },
+          },
         },
-        required: ["titleJa", "summaryJa", "genre"],
+        required: ["titleJa", "summaryJa", "categories"],
       },
     },
   },
@@ -40,7 +52,10 @@ function buildSummaryPrompt(batch: ArticleCluster[]): string {
     "あなたはAI業界ニュースの編集者です。以下の各記事について、日本語で次の項目を作成してください。",
     "- titleJa: 日本語のタイトル（英語記事は自然な日本語に翻訳。簡潔に）",
     "- summaryJa: 2〜3文の日本語要約（事実ベースで、誇張や憶測は避ける）",
-    `- genre: 次から最も近いものを1つ選ぶ: ${GENRES.join(" / ")}`,
+    "- categories: 下のカテゴリ一覧から、この記事が当てはまるものの id を配列で挙げる（複数可）。当てはまるものが1つも無ければ空配列にする。",
+    "",
+    "カテゴリ一覧:",
+    CATEGORY_GUIDE,
     "",
     "記事の順番どおりに articles 配列で返してください。",
     "",
@@ -48,7 +63,7 @@ function buildSummaryPrompt(batch: ArticleCluster[]): string {
   ].join("\n");
 }
 
-// 記事グループの配列をバッチ単位で要約する
+// 記事グループの配列をバッチ単位で要約・分類する
 export async function summarizeClusters(
   clusters: ArticleCluster[],
 ): Promise<SummarizedArticle[]> {
@@ -60,8 +75,10 @@ export async function summarizeClusters(
     const batchNo = Math.floor(i / SUMMARY_BATCH_SIZE) + 1;
     console.log(`  要約バッチ ${batchNo}/${totalBatches}（${batch.length}件）...`);
 
-    // AIに要約させる。失敗しても元タイトルで代用してアプリは止めない。
-    let parsed: { articles?: { titleJa?: string; summaryJa?: string; genre?: string }[] } | null;
+    // AIに要約・分類させる。失敗しても元タイトルで代用してアプリは止めない。
+    let parsed: {
+      articles?: { titleJa?: string; summaryJa?: string; categories?: string[] }[];
+    } | null;
     try {
       const raw = await callGemini(buildSummaryPrompt(batch), {
         responseSchema: summarySchema,
@@ -74,11 +91,16 @@ export async function summarizeClusters(
 
     batch.forEach((cluster, idx) => {
       const r = parsed?.articles?.[idx];
+      // カテゴリが空、または取得できなければ「その他」扱いにする
+      const cats =
+        Array.isArray(r?.categories) && r.categories.length > 0
+          ? r.categories
+          : ["other"];
       results.push({
         cluster,
         titleJa: r?.titleJa ?? cluster.representative.title,
         summaryJa: r?.summaryJa ?? cluster.representative.contentSnippet.slice(0, 120),
-        genre: r?.genre ?? "その他",
+        categories: cats,
       });
     });
 
@@ -112,7 +134,7 @@ export async function pickTopStory(
   }
 
   const list = summaries
-    .map((s, idx) => `${idx + 1}. [${s.genre}] ${s.titleJa} — ${s.summaryJa}`)
+    .map((s, idx) => `${idx + 1}. ${s.titleJa} — ${s.summaryJa}`)
     .join("\n");
 
   const prompt = [

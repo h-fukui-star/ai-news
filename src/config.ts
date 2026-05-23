@@ -15,9 +15,8 @@ export const FEEDS: { name: string; url: string }[] = [
   { name: "MIT Tech Review (AI)", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/" },
   { name: "ITmedia AI+", url: "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml" },
 
-  // --- 研究・論文 ---
-  { name: "arXiv cs.AI", url: "https://rss.arxiv.org/rss/cs.AI" },
-  { name: "arXiv cs.CL", url: "https://rss.arxiv.org/rss/cs.CL" },
+  // ※ arXiv（cs.AI / cs.CL）の学術論文フィードは、実務・ビジネス寄りに絞るため
+  //    第2段階で取り外しました。研究動向も追いたくなったら、ここに戻せます。
 
   // --- 開発者・分析（独自視点の濃いソース）---
   { name: "Simon Willison", url: "https://simonwillison.net/atom/everything/" },
@@ -53,19 +52,8 @@ export const BATCH_DELAY_MS = 4000;
 // 生成したHTMLページの出力先フォルダ（プロジェクト直下に作られる）
 export const OUTPUT_DIR = "public";
 
-// ----- ジャンル -----
-// 記事を分類するジャンルの選択肢
-export const GENRES = ["モデル", "論文", "規制", "ビジネス", "ツール", "その他"];
-
-// ジャンルごとの見出しに添える絵文字（トップページの区切り表示で使う）
-export const GENRE_EMOJI: Record<string, string> = {
-  モデル: "🧠",
-  論文: "📄",
-  規制: "⚖️",
-  ビジネス: "💼",
-  ツール: "🛠️",
-  その他: "📰",
-};
+// ※ 記事の分類は「ジャンル」から「あなた専用カテゴリ」に変わりました。
+//    カテゴリの定義は profile.ts にあります。
 
 // ----- 全文翻訳 -----
 // 「記事を開く」を押したとき、英語記事をまるごと日本語に翻訳した
