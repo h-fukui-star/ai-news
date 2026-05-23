@@ -30,25 +30,46 @@ export async function callGemini(
   }
 
   const url = `${API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini APIエラー（${res.status}）: ${errText.slice(0, 300)}`);
+  // 一時的なエラー（混雑・レート制限・通信の揺らぎ等）に備えて最大3回まで試す。
+  // これにより、要約バッチが失敗して記事が英語のまま残る事態を減らす。
+  const maxAttempts = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Gemini APIエラー（${res.status}）: ${errText.slice(0, 200)}`);
+      }
+
+      const data = (await res.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Geminiから空の応答が返りました");
+      }
+      return text;
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < maxAttempts) {
+        // 回数に応じて待ち時間を延ばす（8秒 → 16秒）
+        console.warn(
+          `  ⏳ Gemini呼び出しに失敗（${attempt}回目）。${attempt * 8}秒待って再試行します。`,
+        );
+        await sleep(attempt * 8000);
+      }
+    }
   }
 
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("Geminiから空の応答が返りました");
-  }
-  return text;
+  throw lastError ?? new Error("Gemini呼び出しに失敗しました");
 }
 
 // 指定ミリ秒だけ待つ（レート制限対策で呼び出し間隔をあけるのに使う）

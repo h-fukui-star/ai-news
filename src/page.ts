@@ -75,7 +75,7 @@ const STYLE = `
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#f5f5f7;--card:#ffffff;--text:#1d1d1f;--sub:#6b6b70;--accent:#4f46e5;--accent-soft:#eef0fe;--border:#e3e3e8;}
 @media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#232326;--text:#f2f2f4;--sub:#9a9aa0;--accent:#8b87f5;--accent-soft:#2a2a46;--border:#34343a;}}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.75;-webkit-font-smoothing:antialiased;}
+body{background:var(--bg);color:var(--text);font-family:"Zen Kaku Gothic New",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.85;-webkit-font-smoothing:antialiased;letter-spacing:.01em;}
 .wrap{max-width:640px;margin:0 auto;padding:24px 16px 56px;}
 header{margin-bottom:20px;}
 header h1{font-size:1.5rem;letter-spacing:.01em;}
@@ -279,6 +279,9 @@ function htmlShell(title: string, bodyInner: string): string {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AIニュース">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 <title>${escapeHtml(title)}</title>
 <style>
 ${STYLE}
