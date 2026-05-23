@@ -51,7 +51,17 @@ export async function callGemini(
   return text;
 }
 
-// 指定ミリ秒だけ待つ（レート制限対策やDiscord送信間隔の調整に使う）
+// 指定ミリ秒だけ待つ（レート制限対策で呼び出し間隔をあけるのに使う）
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// AIの応答（JSON文字列）を安全にパースする。
+// 万一マークダウンのコードフェンス（```json …```）が付いていても外せるようにしている。
+export function parseJsonLoose(raw: string): unknown {
+  let t = raw.trim();
+  if (t.startsWith("```")) {
+    t = t.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  }
+  return JSON.parse(t);
 }

@@ -29,3 +29,35 @@ export interface TopStory {
   index: number; // SummarizedArticle配列の何番目か（0始まり）
   reason: string; // なぜ今日の1本に選ばれたのか（一言）
 }
+
+// 記事の全文翻訳の結果
+export interface Translation {
+  paragraphs: string[]; // 日本語に翻訳した本文（段落ごと）
+  kind: "full" | "abstract"; // full=記事全文 / abstract=論文の要旨
+}
+
+// 要約済み記事に「和訳ページの情報」を加えたもの。
+// ページ生成はこの型をもとに行う。
+export interface DigestArticle extends SummarizedArticle {
+  slug: string; // 和訳ページのファイル名に使う短いID（URLから生成）
+  translation: Translation | null; // 和訳ページを作った場合はその内容。作らない場合は null
+}
+
+// 朝のブリーフィング：注目すべき動き1件分
+export interface BriefingSignal {
+  title: string; // 短い見出し
+  detail: string; // なぜ重要かの説明（1〜2文）
+}
+
+// 朝のブリーフィング：3視点それぞれの活用アドバイス1件分
+export interface BriefingAction {
+  angle: string; // 視点（業務効率化 / ビジネスのヒント / 業界トレンド）
+  text: string; // その視点での具体的な示唆・アクション
+}
+
+// 朝のブリーフィング全体
+export interface Briefing {
+  overview: string; // 本日のAI業界全体の流れ・空気感
+  signals: BriefingSignal[]; // 注目すべき動き
+  actions: BriefingAction[]; // 3視点の活用アドバイス
+}

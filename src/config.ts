@@ -56,3 +56,33 @@ export const OUTPUT_DIR = "public";
 // ----- ジャンル -----
 // 記事を分類するジャンルの選択肢
 export const GENRES = ["モデル", "論文", "規制", "ビジネス", "ツール", "その他"];
+
+// ジャンルごとの見出しに添える絵文字（トップページの区切り表示で使う）
+export const GENRE_EMOJI: Record<string, string> = {
+  モデル: "🧠",
+  論文: "📄",
+  規制: "⚖️",
+  ビジネス: "💼",
+  ツール: "🛠️",
+  その他: "📰",
+};
+
+// ----- 全文翻訳 -----
+// 「記事を開く」を押したとき、英語記事をまるごと日本語に翻訳した
+// 専用ページ（public/articles/ 配下）を作るかどうか。
+// false にすると従来どおり原文サイトへ直リンクする。
+export const ENABLE_FULL_TRANSLATION = true;
+
+// 翻訳のために記事ページから抜き出す本文テキストの最大文字数。
+// 長すぎるページでも、ここまでに切ってAIに渡す（コストと処理時間の対策）。
+export const ARTICLE_EXTRACT_MAX_CHARS = 16000;
+
+// 抜き出した本文がこの文字数未満なら「本文がうまく取れなかった」とみなし、
+// 翻訳ページは作らず原文サイトへの直リンクにフォールバックする。
+export const ARTICLE_EXTRACT_MIN_CHARS = 400;
+
+// 翻訳のAI呼び出しの間隔（ミリ秒）。無料枠「10回/分」への安全マージン。
+export const TRANSLATE_DELAY_MS = 6000;
+
+// 和訳記事ページを書き出すサブフォルダ名（OUTPUT_DIR の中に作られる）
+export const ARTICLES_SUBDIR = "articles";

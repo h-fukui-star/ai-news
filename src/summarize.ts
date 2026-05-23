@@ -1,16 +1,6 @@
-import { callGemini, sleep } from "./gemini";
+import { callGemini, sleep, parseJsonLoose } from "./gemini";
 import { SUMMARY_BATCH_SIZE, BATCH_DELAY_MS, GENRES } from "./config";
 import type { ArticleCluster, SummarizedArticle, TopStory } from "./types";
-
-// AIの応答（JSON文字列）を安全にパースする。
-// 万一マークダウンのコードフェンスが付いていても外せるようにしている。
-function parseJsonLoose(raw: string): unknown {
-  let t = raw.trim();
-  if (t.startsWith("```")) {
-    t = t.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
-  }
-  return JSON.parse(t);
-}
 
 // ----- 記事の要約 -----
 

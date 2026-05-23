@@ -2,10 +2,12 @@ import { loadEnv } from "./env";
 import { fetchAllFeeds } from "./fetchFeeds";
 import { clusterArticles } from "./dedupe";
 import { summarizeClusters, pickTopStory } from "./summarize";
-import { writeDigestPage } from "./page";
+import { buildBriefing } from "./briefing";
+import { buildDigestArticles } from "./translate";
+import { writeSite } from "./page";
 import { MAX_ARTICLES_IN_DIGEST } from "./config";
 import { resolve } from "node:path";
-import type { SummarizedArticle, TopStory } from "./types";
+import type { DigestArticle, TopStory, Briefing } from "./types";
 
 // アプリ本体の処理の流れ
 async function main(): Promise<void> {
@@ -26,8 +28,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  let summaries: SummarizedArticle[] = [];
+  let digestArticles: DigestArticle[] = [];
   let topStory: TopStory | null = null;
+  let briefing: Briefing | null = null;
 
   if (articles.length === 0) {
     // 記事ゼロでも、空ページを生成してデプロイが失敗しないようにする
@@ -46,18 +49,29 @@ async function main(): Promise<void> {
 
     // 3. Geminiで日本語要約
     console.log("🤖 Geminiで日本語要約中...");
-    summaries = await summarizeClusters(clusters);
+    const summaries = await summarizeClusters(clusters);
     console.log(`→ ${summaries.length} 件を要約\n`);
 
     // 4. 今日の1本を選ぶ
     console.log("⭐ 今日の1本を選定中...\n");
     topStory = await pickTopStory(summaries);
+
+    // 5. 朝の横断ブリーフィングを生成
+    console.log("🧭 朝のブリーフィングを生成中...");
+    briefing = await buildBriefing(summaries);
+    console.log(briefing ? "→ ブリーフィングを生成\n" : "→ ブリーフィングなしで続行\n");
+
+    // 6. 各記事を日本語に全文翻訳（和訳ページ用）
+    console.log("📖 記事の全文翻訳中（英語記事のみ・少し時間がかかります）...");
+    digestArticles = await buildDigestArticles(summaries);
+    const translated = digestArticles.filter((a) => a.translation).length;
+    console.log(`→ ${translated} 件の和訳ページを作成\n`);
   }
 
-  // 5. ダイジェストページ（HTML）を生成
-  console.log("📝 ダイジェストページを生成中...");
-  const path = writeDigestPage(summaries, topStory);
-  console.log(`✅ 完了！ページを生成しました:`);
+  // 7. サイト（トップページ＋和訳記事ページ）を生成
+  console.log("📝 ページを生成中...");
+  const path = writeSite(digestArticles, topStory, briefing);
+  console.log("✅ 完了！ページを生成しました:");
   console.log(`   ${resolve(path)}`);
   console.log("   （ローカルで確認するときは、このファイルをブラウザで開いてください）");
 }
