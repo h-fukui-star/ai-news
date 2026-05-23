@@ -200,7 +200,7 @@ const PAGE_SCRIPT = `
       var ds=d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate();
       var full="";
       if(f.tr&&f.tr.length){
-        var label=(f.tk==="abstract")?"要旨（和訳）":"全文（和訳）";
+        var label=(f.tk==="abstract")?"要旨（和訳）":(f.tk==="excerpt")?"概要（和訳）":"全文（和訳）";
         var paras=f.tr.map(function(p){return "<p>"+esc(p)+"</p>";}).join("");
         full='<button class="fav-expand" type="button" data-label="'+label+'">'+label+'を表示 ▼</button>'
             +'<div class="fav-fulltext" style="display:none">'+paras+'</div>';
@@ -303,7 +303,12 @@ function linkInfo(a: DigestArticle): LinkInfo {
   if (a.translation) {
     return {
       href: `${ARTICLES_SUBDIR}/${a.slug}.html`,
-      label: a.translation.kind === "abstract" ? "要旨の和訳を読む →" : "全文の和訳を読む →",
+      label:
+        a.translation.kind === "abstract"
+          ? "要旨の和訳を読む →"
+          : a.translation.kind === "excerpt"
+            ? "概要の和訳を読む →"
+            : "全文の和訳を読む →",
       external: false,
     };
   }
@@ -548,10 +553,17 @@ export function renderArticlePage(a: DigestArticle): string {
     throw new Error("translation が無い記事の和訳ページは生成できません");
   }
 
-  const noticeText =
-    tr.kind === "abstract"
-      ? "🤖 これはAIが翻訳した論文の要旨（アブストラクト）です。論文の全文は原文（多くはPDF）をご確認ください。"
-      : "🤖 この記事はAIが英語の原文を日本語に全文翻訳したものです。固有名詞や数値などは、必要に応じて原文もあわせてご確認ください。";
+  let noticeText: string;
+  if (tr.kind === "abstract") {
+    noticeText =
+      "🤖 これはAIが翻訳した論文の要旨（アブストラクト）です。論文の全文は原文（多くはPDF）をご確認ください。";
+  } else if (tr.kind === "excerpt") {
+    noticeText =
+      "🤖 これはAIが翻訳した記事の概要（冒頭部分）です。元記事の本文がうまく取得できなかったため、全文は原文サイトでご確認ください。";
+  } else {
+    noticeText =
+      "🤖 この記事はAIが英語の原文を日本語に全文翻訳したものです。固有名詞や数値などは、必要に応じて原文もあわせてご確認ください。";
+  }
 
   const dateLabel = rep.publishedAt ? jstShortDate(rep.publishedAt) : "";
   const metaParts = [escapeHtml(rep.source)];

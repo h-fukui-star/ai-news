@@ -15,8 +15,20 @@ export const FEEDS: { name: string; url: string }[] = [
   { name: "MIT Tech Review (AI)", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/" },
   { name: "ITmedia AI+", url: "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml" },
 
+  // --- AI専門メディア（実務・ビジネス寄り。記事数を増やすため追加）---
+  { name: "VentureBeat AI", url: "https://venturebeat.com/category/ai/feed/" },
+  { name: "The Decoder", url: "https://the-decoder.com/feed/" },
+  { name: "MarkTechPost", url: "https://www.marktechpost.com/feed/" },
+
+  // --- AIニュースのまとめ・ダイジェスト ---
+  { name: "TLDR AI", url: "https://tldr.tech/api/rss/ai" },
+  { name: "The Rundown AI", url: "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml" },
+  { name: "Ben's Bites", url: "https://bensbites.beehiiv.com/feed" },
+  { name: "Import AI", url: "https://importai.substack.com/feed" },
+
   // ※ arXiv（cs.AI / cs.CL）の学術論文フィードは、実務・ビジネス寄りに絞るため
-  //    第2段階で取り外しました。研究動向も追いたくなったら、ここに戻せます。
+  //    取り外しています。研究動向も追いたくなったら、ここに戻せます。
+  // ※ 取得できないフィードがあっても自動でスキップされ、他は通常どおり処理されます。
 
   // --- 開発者・分析（独自視点の濃いソース）---
   { name: "Simon Willison", url: "https://simonwillison.net/atom/everything/" },
@@ -36,7 +48,8 @@ export const HOURS_LOOKBACK = 30;
 export const MAX_ITEMS_PER_FEED = 15;
 
 // 1回のダイジェストに載せる最大記事数（名寄せ後のグループ数で数える）
-export const MAX_ARTICLES_IN_DIGEST = 20;
+// 「その他」も含めて十分な数を載せられるよう、多めにしている。
+export const MAX_ARTICLES_IN_DIGEST = 40;
 
 // ----- Gemini設定 -----
 // 使用するモデル名。2.5 Flash は無料枠で安定。新しい世代に変えるならここを編集。

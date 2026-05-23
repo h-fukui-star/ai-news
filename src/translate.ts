@@ -33,16 +33,23 @@ function toParagraphs(text: string): string[] {
     .filter((p) => p.length > 0);
 }
 
-// 本文（または論文要旨）をGeminiで日本語に翻訳する
+// 本文・論文要旨・記事概要をGeminiで日本語に翻訳する
 async function translateBody(
   title: string,
   body: string,
-  kind: "full" | "abstract",
+  kind: "full" | "abstract" | "excerpt",
 ): Promise<string[]> {
-  const intro =
-    kind === "abstract"
-      ? "以下は学術論文の要旨（アブストラクト）です。専門用語には適切な訳語をあて、自然で読みやすい日本語に翻訳してください。"
-      : "以下は英語ニュース記事のページから抜き出したテキストです。メニュー・広告・関連記事・SNSボタン・著者紹介など、記事本文ではないゴミが混ざっている可能性があります。記事本文（見出しと段落）だけを抜き出し、自然で読みやすい日本語に全文翻訳してください。";
+  let intro: string;
+  if (kind === "abstract") {
+    intro =
+      "以下は学術論文の要旨（アブストラクト）です。専門用語には適切な訳語をあて、自然で読みやすい日本語に翻訳してください。";
+  } else if (kind === "excerpt") {
+    intro =
+      "以下は英語ニュース記事の概要（冒頭の抜粋）です。自然で読みやすい日本語に翻訳してください。";
+  } else {
+    intro =
+      "以下は英語ニュース記事のページから抜き出したテキストです。メニュー・広告・関連記事・SNSボタン・著者紹介など、記事本文ではないゴミが混ざっている可能性があります。記事本文（見出しと段落）だけを抜き出し、自然で読みやすい日本語に全文翻訳してください。";
+  }
 
   const prompt = [
     intro,
@@ -103,10 +110,17 @@ export async function buildDigestArticles(
       }
       await sleep(TRANSLATE_DELAY_MS);
     } else {
-      // 英語ニュース記事 → 本文を取得して全文翻訳する
+      // 英語ニュース記事 → 本文を取得して全文翻訳する。
+      // 本文が取得できないとき（有料記事など）は、RSSの抜粋を和訳して概要ページにする。
+      let body = "";
       try {
-        const body = await extractArticleText(rep.link);
+        body = await extractArticleText(rep.link);
+      } catch (err) {
+        console.warn(`  ・${label}: 本文の取得に失敗（${(err as Error).message}）`);
+      }
+      try {
         if (body.length >= ARTICLE_EXTRACT_MIN_CHARS) {
+          // 本文が取れた → 全文翻訳
           const para = await translateBody(rep.title, body, "full");
           if (para.length > 0) {
             translation = { paragraphs: para, kind: "full" };
@@ -114,11 +128,22 @@ export async function buildDigestArticles(
           }
           await sleep(TRANSLATE_DELAY_MS);
         } else {
-          console.warn(`  ✗ ${label}: 本文をうまく取得できず原文リンクにします`);
+          // 本文が取れなかった → RSSの抜粋を和訳してフォールバック
+          const snippet = rep.contentSnippet.trim();
+          if (snippet.length >= 60) {
+            const para = await translateBody(rep.title, snippet, "excerpt");
+            if (para.length > 0) {
+              translation = { paragraphs: para, kind: "excerpt" };
+              console.log(`  ✓ ${label}: 概要（抜粋）を翻訳`);
+            }
+            await sleep(TRANSLATE_DELAY_MS);
+          } else {
+            console.warn(`  ✗ ${label}: 抜粋も無いため原文リンクにします`);
+          }
         }
       } catch (err) {
         console.warn(
-          `  ✗ ${label}: 本文取得・翻訳に失敗（${(err as Error).message}）— 原文リンクにします`,
+          `  ✗ ${label}: 翻訳に失敗（${(err as Error).message}）— 原文リンクにします`,
         );
       }
     }

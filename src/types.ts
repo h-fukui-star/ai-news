@@ -39,10 +39,11 @@ export interface TopStory {
   reason: string; // なぜ今日の1本に選ばれたのか（一言）
 }
 
-// 記事の全文翻訳の結果
+// 記事の翻訳の結果
 export interface Translation {
   paragraphs: string[]; // 日本語に翻訳した本文（段落ごと）
-  kind: "full" | "abstract"; // full=記事全文 / abstract=論文の要旨
+  // full=記事全文 / abstract=論文の要旨 / excerpt=記事概要（本文が取れなかったとき）
+  kind: "full" | "abstract" | "excerpt";
 }
 
 // 要約済み記事に「和訳ページの情報」を加えたもの。
