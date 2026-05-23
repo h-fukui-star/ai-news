@@ -1,0 +1,20 @@
+{
+  "name": "ai-news-digest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "自分専用AIニュース集約アプリ（第1段階：毎朝ダイジェスト）",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "check-feeds": "tsx src/main.ts --check-feeds",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
