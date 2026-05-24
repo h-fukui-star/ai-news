@@ -113,7 +113,7 @@ export async function summarizeClusters(
   // 未処理の記事インデックスのリスト（最初は全件）
   let pending: number[] = clusters.map((_, i) => i);
 
-  const MAX_ROUNDS = 2; // 1巡目 ＋ 取りこぼしの再要約1巡
+  const MAX_ROUNDS = 3; // 1巡目 ＋ 取りこぼしの再要約を最大2巡
   for (let round = 1; round <= MAX_ROUNDS && pending.length > 0; round++) {
     if (round === 1) {
       console.log(`  ${pending.length} 件を要約中...`);

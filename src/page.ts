@@ -296,6 +296,20 @@ ${bodyInner}
 
 // ----- リンク先の判定 -----
 
+// 外部の記事URLを、Google翻訳ごしに日本語で開くURLに変換する。
+// 海外サイトをそのまま日本語に訳して表示してくれる（ホスト名を
+// translate.goog 形式に変換する：「.」→「-」、元の「-」→「--」）。
+function googleTranslateUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.replace(/-/g, "--").replace(/\./g, "-");
+    const sep = u.search ? "&" : "?";
+    return `https://${host}.translate.goog${u.pathname}${u.search}${sep}_x_tr_sl=auto&_x_tr_tl=ja&_x_tr_hl=ja${u.hash}`;
+  } catch {
+    return rawUrl;
+  }
+}
+
 interface LinkInfo {
   href: string;
   label: string;
@@ -316,8 +330,8 @@ function linkInfo(a: DigestArticle): LinkInfo {
     };
   }
   return {
-    href: a.cluster.representative.link,
-    label: "原文サイトを開く →",
+    href: googleTranslateUrl(a.cluster.representative.link),
+    label: "原文を日本語で開く →",
     external: true,
   };
 }
@@ -587,7 +601,7 @@ export function renderArticlePage(a: DigestArticle): string {
     <div class="article-body">
 ${bodyHtml}
     </div>
-    <a class="orig-btn" href="${escapeHtml(rep.link)}" target="_blank" rel="noopener">原文サイトを開く（外部リンク）→</a>
+    <a class="orig-btn" href="${escapeHtml(googleTranslateUrl(rep.link))}" target="_blank" rel="noopener">原文サイトを日本語で開く →</a>
     <a class="back" href="../index.html">← 今日の一覧へ戻る</a>
   </div>`;
 

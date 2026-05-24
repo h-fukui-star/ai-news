@@ -59,6 +59,11 @@ export async function callGemini(
       return text;
     } catch (err) {
       lastError = err as Error;
+      // 429（回数制限・無料枠の超過）は、待って再試行しても回復しない。
+      // すぐに中断し、無駄な待ち時間とAPI消費を避ける。
+      if (lastError.message.includes("（429）")) {
+        throw lastError;
+      }
       if (attempt < maxAttempts) {
         // 回数に応じて待ち時間を延ばす（8秒 → 16秒）
         console.warn(

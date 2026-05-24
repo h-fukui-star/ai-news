@@ -23,8 +23,6 @@ export const FEEDS: { name: string; url: string }[] = [
   // --- AIニュースのまとめ・ダイジェスト ---
   { name: "TLDR AI", url: "https://tldr.tech/api/rss/ai" },
   { name: "The Rundown AI", url: "https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml" },
-  { name: "Ben's Bites", url: "https://bensbites.beehiiv.com/feed" },
-  { name: "Import AI", url: "https://importai.substack.com/feed" },
 
   // ※ arXiv（cs.AI / cs.CL）の学術論文フィードは、実務・ビジネス寄りに絞るため
   //    取り外しています。研究動向も追いたくなったら、ここに戻せます。
@@ -48,8 +46,9 @@ export const HOURS_LOOKBACK = 30;
 export const MAX_ITEMS_PER_FEED = 15;
 
 // 1回のダイジェストに載せる最大記事数（名寄せ後のグループ数で数える）
-// 「その他」も含めて十分な数を載せられるよう、多めにしている。
-export const MAX_ARTICLES_IN_DIGEST = 40;
+// 記事1件ごとにGeminiの翻訳呼び出しが発生するため、無料枠で安定して
+// 回せるよう30件にしている（多くしすぎると無料枠を使い切りやすい）。
+export const MAX_ARTICLES_IN_DIGEST = 30;
 
 // ----- Gemini設定 -----
 // 使用するモデル名。2.5 Flash は無料枠で安定。新しい世代に変えるならここを編集。

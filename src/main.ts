@@ -52,6 +52,21 @@ async function main(): Promise<void> {
     const summaries = await summarizeClusters(clusters);
     console.log(`→ ${summaries.length} 件を要約\n`);
 
+    // AI処理の大半が失敗した場合（Gemini無料枠の超過など）は、
+    // 英語だらけの壊れたページで公開中のサイトを上書きしないよう、ここで中断する。
+    // 中断するとデプロイ手順が走らないので、前回の正常なサイトがそのまま残る。
+    const failedCount = summaries.filter(
+      (s) => s.titleJa === s.cluster.representative.title,
+    ).length;
+    if (summaries.length >= 4 && failedCount >= summaries.length * 0.5) {
+      throw new Error(
+        `AI処理の大半が失敗しました（${failedCount}/${summaries.length}件が未処理）。` +
+          "Gemini APIの無料枠を使い切った可能性が高いです。" +
+          "公開中のサイトを壊さないため、今回の更新は中断しました。" +
+          "無料枠は時間がたつと回復するので、しばらく（半日〜1日）待ってから再実行してください。",
+      );
+    }
+
     // 4. 今日の1本を選ぶ
     console.log("⭐ 今日の1本を選定中...\n");
     topStory = await pickTopStory(summaries);
