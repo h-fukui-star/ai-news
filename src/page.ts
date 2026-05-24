@@ -1,8 +1,14 @@
 // ===== HTMLページの生成 =====
 // トップページ（index.html）と、記事ごとの和訳ページ（articles/*.html）を作る。
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { OUTPUT_DIR, ARTICLES_SUBDIR } from "./config";
+import {
+  mkdirSync,
+  writeFileSync,
+  readdirSync,
+  copyFileSync,
+  existsSync,
+} from "node:fs";
+import { OUTPUT_DIR, ARTICLES_SUBDIR, ASSETS_DIR } from "./config";
 import { CATEGORIES, OTHER_CATEGORY } from "./profile";
 import type { DigestArticle, TopStory, Briefing, Category } from "./types";
 
@@ -268,8 +274,14 @@ const PAGE_SCRIPT = `
 })();
 `.trim();
 
+// アイコン・マニフェストのリンク（トップページの<head>に入れる）
+const ICON_LINKS =
+  `<link rel="icon" href="favicon.png">\n` +
+  `<link rel="apple-touch-icon" href="icon-180.png">\n` +
+  `<link rel="manifest" href="manifest.webmanifest">\n`;
+
 // HTMLページの外枠を組み立てる
-function htmlShell(title: string, bodyInner: string): string {
+function htmlShell(title: string, bodyInner: string, headExtra = ""): string {
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -282,7 +294,7 @@ function htmlShell(title: string, bodyInner: string): string {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
-<title>${escapeHtml(title)}</title>
+${headExtra}<title>${escapeHtml(title)}</title>
 <style>
 ${STYLE}
 </style>
@@ -558,7 +570,7 @@ ${content}
     </footer>
   </div>${scripts}`;
 
-  return htmlShell("今日のAIニュース", inner);
+  return htmlShell("今日のAIニュース", inner, ICON_LINKS);
 }
 
 // ----- 和訳記事ページ -----
@@ -630,6 +642,13 @@ export function writeSite(
         renderArticlePage(a),
         "utf-8",
       );
+    }
+  }
+
+  // アイコン・マニフェストなどの静的ファイルを public/ へコピーする
+  if (existsSync(ASSETS_DIR)) {
+    for (const f of readdirSync(ASSETS_DIR)) {
+      copyFileSync(`${ASSETS_DIR}/${f}`, `${OUTPUT_DIR}/${f}`);
     }
   }
 

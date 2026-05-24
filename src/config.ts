@@ -86,3 +86,8 @@ export const TRANSLATE_DELAY_MS = 6000;
 
 // 和訳記事ページを書き出すサブフォルダ名（OUTPUT_DIR の中に作られる）
 export const ARTICLES_SUBDIR = "articles";
+
+// ----- アイコン等の静的ファイル -----
+// アプリのアイコン画像・マニフェストを置くフォルダ（プロジェクト直下）。
+// ビルド時に、この中身が丸ごと OUTPUT_DIR へコピーされて公開される。
+export const ASSETS_DIR = "assets";
